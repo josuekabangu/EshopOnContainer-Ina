@@ -1,0 +1,42 @@
+# values.yaml
+namespace: dev
+
+image:
+  repository: ankane/pgvector
+  tag: latest
+  pullPolicy: IfNotPresent
+
+containerName: catalogdb
+
+env:
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: password
+  POSTGRES_DB: catalogdb
+  PGDATA: /var/lib/postgresql/data
+  POSTGRES_HOST_AUTH_METHOD: trust
+
+service:
+  type: ClusterIP
+  port: 5432
+  targetPort: 5432
+
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+  mountPath: /var/lib/postgresql/data
+
+livenessProbe:
+  enabled: true
+  exec:
+    command:
+      - pg_isready
+      - -U
+      - postgres
+      - -d
+      - catalogdb
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 5

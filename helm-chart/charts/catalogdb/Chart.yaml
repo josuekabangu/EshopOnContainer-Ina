@@ -1,0 +1,5 @@
+apiVersion: v2
+name: catalogdb
+description: A Helm chart for catalogdb using pgvector
+version: 0.1.0
+appVersion: "latest"

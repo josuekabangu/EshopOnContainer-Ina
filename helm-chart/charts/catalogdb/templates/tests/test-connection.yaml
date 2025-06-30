@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: catalogdb-test-connection
+  namespace: {{ .Values.namespace | default "dev" }}
+  labels:
+    app.kubernetes.io/name: catalogdb
+    helm.sh/hook: test
+spec:
+  containers:
+  - name: pg-test
+    image: postgres:latest
+    env:
+    - name: PGPASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: catalogdb-secrets
+          key: POSTGRES_PASSWORD
+    command:
+    - sh
+    - -c
+    - |
+      until pg_isready -h catalogdb -p {{ .Values.service.port | default 5432 }} -U postgres; do
+        echo "Waiting for catalogdb to be ready...";
+        sleep 2;
+      done;
+      echo "catalogdb is ready!";
+      psql -h catalogdb -U postgres -c '\l';
+  restartPolicy: Never
