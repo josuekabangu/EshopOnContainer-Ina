@@ -1,0 +1,90 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_ID = "ajkabs"
+        DOCKER_TAG = "v.${BUILD_ID}.0"
+        GIT_CREDENTIALS_ID = 'github-creds'
+        DOCKER_CREDENTIALS_ID = 'dockerhub-creds'
+        REPO_URL = 'https://github.com/josuekabangu/EshopOnContainer.git'
+    }
+
+    stages {
+        stage('Checkout Repository') {
+            steps {
+                echo "Clonage du dépôt depuis ${REPO_URL}..."
+                git url: "${REPO_URL}", credentialsId: "${GIT_CREDENTIALS_ID}", branch: 'main'
+            }
+        }
+
+        stage('Build Custom Docker Images') {
+            steps {
+                script {
+                    def services = [
+                        [name: 'basket-api', path: 'Basket.API'],
+                        [name: 'catalog-api', path: 'Catalog.API'],
+                        [name: 'identity-api', path: 'Identity.API'],
+                        [name: 'ordering-api', path: 'Ordering.API'],
+                        [name: 'order-processor', path: 'OrderProcessor'],
+                        [name: 'payment-processor', path: 'PaymentProcessor'],
+                        [name: 'webhooks-api', path: 'Webhooks.API'],
+                        [name: 'mobile-bff', path: 'Mobile.Bff.Shopping'],
+                        [name: 'webapp', path: 'WebApp']
+                    ]
+
+                    for (service in services) {
+                        echo "Build de l'image Docker pour ${service.name}"
+                        sh """
+                            docker build -t ${DOCKER_ID}/${service.name}:${DOCKER_TAG} \
+                            -f src/${service.path}/Dockerfile .
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Login to DockerHub') {
+            steps {
+                echo "Connexion à DockerHub..."
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "${DOCKER_CREDENTIALS_ID}",
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
+                }
+            }
+        }
+
+        stage('Push Docker Images') {
+            steps {
+                script {
+                    def imageNames = [
+                        'basket-api', 'catalog-api', 'identity-api',
+                        'ordering-api', 'order-processor', 'payment-processor',
+                        'webhooks-api', 'mobile-bff', 'webapp'
+                    ]
+
+                    for (name in imageNames) {
+                        echo "Push de ${name} vers DockerHub..."
+                        sh "docker push ${DOCKER_ID}/${name}:${DOCKER_TAG}"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline terminé avec succès. Images taguées : ${DOCKER_TAG}"
+        }
+        failure {
+            echo "Échec du pipeline. Vérifie les étapes précédentes."
+        }
+        always {
+            echo "Pipeline terminé. (Succès ou Échec)"
+        }
+    }
+}
