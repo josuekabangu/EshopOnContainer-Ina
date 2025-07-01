@@ -13,7 +13,6 @@ env:
   POSTGRES_PASSWORD: password
   POSTGRES_DB: catalogdb
   PGDATA: /var/lib/postgresql/data
-  POSTGRES_HOST_AUTH_METHOD: trust
 
 service:
   type: ClusterIP
@@ -37,6 +36,6 @@ livenessProbe:
       - -d
       - catalogdb
   initialDelaySeconds: 30
-  periodSeconds: 30
+  periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 5
