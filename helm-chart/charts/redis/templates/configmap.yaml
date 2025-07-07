@@ -4,6 +4,7 @@ metadata:
   name: redis-config
 data:
   redis.conf: |
+    bind {{ .Values.redis.config.bind }}
     requirepass {{ .Values.redis.password }}
     maxmemory {{ .Values.redis.config.maxmemory }}
     maxmemory-policy {{ .Values.redis.config.maxmemoryPolicy }}

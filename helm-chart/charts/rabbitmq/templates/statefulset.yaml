@@ -16,26 +16,62 @@ spec:
     spec:
       containers:
         - name: rabbitmq
-          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.amqpPort }}
+              name: amqp
+            - containerPort: {{ .Values.service.managementPort }}
+              name: management
           env:
             - name: RABBITMQ_DEFAULT_USER
               valueFrom:
                 secretKeyRef:
-                  name: rabbitmq-secret
-                  key: username
+                  name: rabbitmq-secrets
+                  key: RABBITMQ_DEFAULT_USER
             - name: RABBITMQ_DEFAULT_PASS
               valueFrom:
                 secretKeyRef:
-                  name: rabbitmq-secret
-                  key: password
-            - name: RABBITMQ_NODENAME
-              value: {{ .Values.rabbitmq.nodename }}
-          ports:
-            - containerPort: 5672
-              name: amqp
-            - containerPort: 15672
-              name: management
+                  name: rabbitmq-secrets
+                  key: RABBITMQ_DEFAULT_PASS
+            - name: RABBITMQ_DEFAULT_VHOST
+              value: {{ .Values.rabbitmq.defaultVhost | quote }}
+            - name: RABBITMQ_MNESIA_BASE
+              value: "/bitnami/rabbitmq/mnesia"
+            - name: RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS
+              value: {{ .Values.rabbitmq.config.additionalErlArgs | quote }}
+            - name: RABBITMQ_CTL_ERL_ARGS
+              value: {{ .Values.rabbitmq.config.ctlErlArgs | quote }}
+            - name: RABBITMQ_USE_LONGNAME
+              value: "true"
+            - name: RABBITMQ_ERLANG_COOKIE
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-erlang-cookie
+                  key: erlang-cookie
+            - name: RABBITMQ_LOAD_DEFINITIONS
+              value: "/etc/rabbitmq/definitions.json"
+          command: ["/bin/bash"]
+          args:
+            - -c
+            - |
+              set -x
+              export RABBITMQ_NODENAME=rabbit@${HOSTNAME}.{{ .Values.service.headlessName }}.{{ .Values.namespace }}.svc.cluster.local
+              rabbitmq-plugins enable rabbitmq_management
+              exec /opt/bitnami/scripts/rabbitmq/entrypoint.sh rabbitmq-server
+          volumeMounts:
+            - name: rmq-data
+              mountPath: /bitnami/rabbitmq/mnesia
+            - name: rabbitmq-config
+              mountPath: /etc/rabbitmq/rabbitmq.conf
+              subPath: rabbitmq.conf
+            - name: rabbitmq-definitions
+              mountPath: /etc/rabbitmq/definitions.json
+              subPath: definitions.json
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
           resources:
             requests:
               cpu: {{ .Values.resources.requests.cpu }}
@@ -43,19 +79,26 @@ spec:
             limits:
               cpu: {{ .Values.resources.limits.cpu }}
               memory: {{ .Values.resources.limits.memory }}
-          volumeMounts:
-            - name: rabbitmq-data
-              mountPath: /var/lib/rabbitmq
       volumes:
         - name: rabbitmq-config
           configMap:
             name: rabbitmq-config
+            items:
+              - key: rabbitmq.conf
+                path: rabbitmq.conf
+        - name: rabbitmq-definitions
+          configMap:
+            name: rabbitmq-definitions
+            items:
+              - key: definitions.json
+                path: definitions.json
   volumeClaimTemplates:
     - metadata:
-        name: rabbitmq-data
+        name: rmq-data
       spec:
         accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.persistence.storageClass }}
         resources:
           requests:
-            storage: {{ .Values.pvc.size }}
-        storageClassName: local-path
+            storage: {{ .Values.persistence.size }}
+  

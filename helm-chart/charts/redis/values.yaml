@@ -10,6 +10,7 @@ service:
 redis:
   password: "redis"
   config:
+    bind: "0.0.0.0"
     maxmemory: "256mb"
     maxmemoryPolicy: "allkeys-lru"
 

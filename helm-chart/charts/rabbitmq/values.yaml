@@ -1,28 +1,31 @@
 namespace: dev
 
-image:
-  repository: rabbitmq
-  tag: 3.12-management-alpine
-  pullPolicy: IfNotPresent
-
 replicaCount: 1
 
+image:
+  repository: bitnami/rabbitmq
+  tag: 4.1.2
+  pullPolicy: IfNotPresent
+
 service:
-  type: NodePort
+  type: ClusterIP
   amqpPort: 5672
-  amqpNodePort: 30672
   managementPort: 15672
-  managementNodePort: 31672
   headlessName: rabbitmq-headless
 
-pvc:
-  name: rmq-data-pvc
-  size: 1Gi
-
 rabbitmq:
-  defaultUser: guest
-  defaultPass: guest
-  nodename: rabbit@rabbitmq-0.rabbitmq-headless.dev.svc.cluster.local
+  defaultUser: admin
+  defaultPass: admin
+  defaultVhost: /
+  config:
+    mnesiaBase: /bitnami/rabbitmq/mnesia  # Aligné avec le StatefulSet
+    additionalErlArgs: "+sbwt none +sbwtdcpu none +sbwtdio none +stbt db"
+    ctlErlArgs: "+P 1048576 +K true +A 128"
+
+persistence:
+  size: 1Gi
+  storageClass: local-path
+  mountPath: /bitnami/rabbitmq/mnesia  # Aligné avec le StatefulSet
 
 resources:
   requests:
@@ -31,3 +34,27 @@ resources:
   limits:
     cpu: "500m"
     memory: "512Mi"
+
+livenessProbe:
+  exec:
+    command:
+      - rabbitmq-diagnostics
+      - -q
+      - ping
+  initialDelaySeconds: 60
+  timeoutSeconds: 30
+  periodSeconds: 20
+  successThreshold: 1
+  failureThreshold: 6
+readinessProbe:
+  exec:
+    command:
+      - rabbitmq-diagnostics
+      - -q
+      - ping
+  initialDelaySeconds: 60
+  timeoutSeconds: 30
+  periodSeconds: 20
+  successThreshold: 1
+  failureThreshold: 6
+  

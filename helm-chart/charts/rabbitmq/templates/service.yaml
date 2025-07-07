@@ -5,14 +5,10 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.amqpPort }}
+      name: amqp
+    - port: {{ .Values.service.managementPort }}
+      name: management
   selector:
     app: rabbitmq
-  ports:
-    - name: amqp
-      port: {{ .Values.service.amqpPort }}
-      targetPort: 5672
-      nodePort: {{ .Values.service.amqpNodePort }}
-    - name: management
-      port: {{ .Values.service.managementPort }}
-      targetPort: 15672
-      nodePort: {{ .Values.service.managementNodePort }}

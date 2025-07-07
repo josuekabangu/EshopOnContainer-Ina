@@ -4,5 +4,7 @@ metadata:
   name: rabbitmq-config
   namespace: {{ .Values.namespace }}
 data:
-  enabled_plugins: |
-    [rabbitmq_management].
+  rabbitmq.conf: |
+    loopback_users.guest = false
+    management.tcp.port = {{ .Values.service.managementPort }}
+    listeners.tcp.default = {{ .Values.service.amqpPort }}
